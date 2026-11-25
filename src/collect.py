@@ -17,11 +17,13 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Literal
+from typing import Callable, Literal, TYPE_CHECKING
 
 import pandas as pd
 import requests
-from bs4 import BeautifulSoup
+
+if TYPE_CHECKING:
+    from bs4 import BeautifulSoup
 
 # Canonical output columns shared by every source.
 COLUMNS: list[str] = [
@@ -258,6 +260,8 @@ def from_web(
 
     # Be polite: pace requests to the same host.
     time.sleep(delay)
+
+    from bs4 import BeautifulSoup  # lazy import: optional hard dependency
 
     soup = BeautifulSoup(response.text, "html.parser")
     try:

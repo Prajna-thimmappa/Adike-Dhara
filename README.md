@@ -136,6 +136,31 @@ streamlit run app.py
 `.github/workflows/update.yml` runs collection + cleaning daily at 02:00 UTC and
 commits updated processed data. Enable Actions in the repository settings.
 
+## Testing
+
+Run the unit test suite with `pytest`:
+
+```bash
+pip install pytest
+python -m pytest tests/ -v
+```
+
+Tests cover collection aliasing, date parsing, outlier flagging, missing-day
+insertion, feature construction without future leakage, chronological splits,
+walk-forward splits, and the baseline forecasters.
+
+## Docker
+
+Build and run the container (includes a sample dataset and a pre-cleaned
+processed file):
+
+```bash
+docker build -t adike-dhara .
+docker run -p 8501:8501 adike-dhara
+```
+
+Then open http://localhost:8501.
+
 ## Limitations
 
 - **Unpredictable shocks:** Arecanut prices can move suddenly on government

@@ -60,7 +60,7 @@ def build_features(
 
     # Calendar features from the date itself (never future information).
     df["month"] = df[DATE_COL].dt.month
-    df["day_of_week"] = df[DATE_COL].dt.dayofweek
+    df["day_of_week"] = df[DATE_COL].dt.day_of_week
 
     # Lag / rolling / target computed within each (market, variety) series
     # using transform so every original column is preserved.
