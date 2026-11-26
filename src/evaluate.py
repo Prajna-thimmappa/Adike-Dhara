@@ -24,6 +24,7 @@ from models import (
     ProphetForecaster,
     SarimaForecaster,
     XGBoostForecaster,
+    LightGBMForecaster,
     _metrics,
 )
 
@@ -33,6 +34,7 @@ DEFAULT_MODELS = {
     "sarima": SarimaForecaster,
     "prophet": ProphetForecaster,
     "xgboost": XGBoostForecaster,
+    "lightgbm": LightGBMForecaster,
 }
 
 

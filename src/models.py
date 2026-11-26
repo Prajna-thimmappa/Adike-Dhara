@@ -230,6 +230,61 @@ class XGBoostForecaster(BaseForecaster):
         return np.asarray(self._model.predict(X), dtype=float)
 
 
+class LightGBMForecaster(BaseForecaster):
+    """LightGBM regressor on lag / rolling / calendar features."""
+
+    name = "lightgbm"
+
+    def __init__(self, n_estimators: int = 300, max_depth: int = 5,
+                 learning_rate: float = 0.05, subsample: float = 0.8,
+                 colsample_bytree: float = 0.8, random_state: int = 42) -> None:
+        self.n_estimators = n_estimators
+        self.max_depth = max_depth
+        self.learning_rate = learning_rate
+        self.subsample = subsample
+        self.colsample_bytree = colsample_bytree
+        self.random_state = random_state
+        self._model = None
+        self._feature_cols: list[str] = []
+        self._last_row: Optional[pd.Series] = None
+
+    def fit(self, series: pd.Series, exog: Optional[pd.DataFrame] = None) -> "LightGBMForecaster":
+        from lightgbm import LGBMRegressor
+        if exog is None:
+            raise ValueError("LightGBMForecaster requires an exogenous feature frame (exog).")
+        self._feature_cols = list(exog.columns)
+        X = exog.values.astype(float)
+        y = series.values.astype(float)
+        n = len(X)
+        if n != len(y):
+            n = min(n, len(y))
+            X = X[:n]
+            y = y[:n]
+        self._model = LGBMRegressor(
+            n_estimators=self.n_estimators,
+            max_depth=self.max_depth,
+            learning_rate=self.learning_rate,
+            subsample=self.subsample,
+            colsample_bytree=self.colsample_bytree,
+            random_state=self.random_state,
+            n_jobs=1,
+            verbose=-1,
+        )
+        self._model.fit(X, y)
+        self._last_row = exog.iloc[-1] if len(exog) else None
+        return self
+
+    def predict(self, steps: int, exog: Optional[pd.DataFrame] = None) -> np.ndarray:
+        if self._model is None:
+            raise RuntimeError("Call fit() before predict().")
+        if exog is None:
+            if self._last_row is None:
+                raise ValueError("exog required for multi-step LightGBM forecast.")
+            exog = pd.DataFrame([self._last_row] * steps, columns=self._feature_cols)
+        X = exog.values.astype(float)
+        return np.asarray(self._model.predict(X), dtype=float)
+
+
 def evaluate_model(fc: BaseForecaster, series: pd.Series,
                    train_end: pd.Timestamp) -> dict:
     """Fit on history up to ``train_end`` and evaluate on the immediate tail.
