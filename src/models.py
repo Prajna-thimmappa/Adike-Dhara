@@ -122,9 +122,9 @@ class SarimaForecaster(BaseForecaster):
 
     def predict_interval(self, steps: int, alpha: float = 0.05):
         """Point forecast plus (lower, upper) confidence intervals."""
-        fc = self._fitted.get_forecast(steps=steps, alpha=alpha)
+        fc = self._fitted.get_forecast(steps=steps)
         mean = np.asarray(fc.predicted_mean, dtype=float)
-        ci = np.asarray(fc.conf_int(), dtype=float)
+        ci = np.asarray(fc.conf_int(alpha=alpha), dtype=float)
         return mean, ci[:, 0], ci[:, 1]
 
 

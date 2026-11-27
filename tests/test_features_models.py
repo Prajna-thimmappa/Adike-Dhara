@@ -7,7 +7,16 @@ import pandas as pd
 import pytest
 
 from features import build_features, split_time, walk_forward_splits
-from models import MovingAverage7, NaiveBaseline, _mape, _metrics
+from models import (
+    MovingAverage7,
+    NaiveBaseline,
+    SarimaForecaster,
+    ProphetForecaster,
+    XGBoostForecaster,
+    LightGBMForecaster,
+    _mape,
+    _metrics,
+)
 
 
 def _make_series(n=100):
@@ -91,3 +100,90 @@ def test_mape_zero_handling():
     y_true = np.array([0.0, 100.0])
     y_pred = np.array([10.0, 110.0])
     assert _mape(y_true, y_pred) == pytest.approx(10.0)  # only the 100 counts
+
+
+def _make_price_series(n=120, seed=3):
+    rng = np.random.default_rng(seed)
+    dates = pd.date_range("2025-01-01", periods=n, freq="D")
+    trend = np.linspace(400, 460, n)
+    seasonal = 10 * np.sin(2 * np.pi * np.arange(n) / 7)
+    noise = rng.normal(0, 3, n)
+    prices = trend + seasonal + noise
+    return pd.Series(prices, index=dates)
+
+
+def test_sarima_forecaster_fit_predict():
+    series = _make_price_series(n=100)
+    fc = SarimaForecaster(order=(1, 1, 1), seasonal_order=(1, 1, 1, 7))
+    fc.fit(series)
+    pred = fc.predict(7)
+    assert len(pred) == 7
+    assert np.all(np.isfinite(pred))
+
+
+def test_sarima_forecaster_predict_interval():
+    series = _make_price_series(n=100)
+    fc = SarimaForecaster(order=(1, 1, 1), seasonal_order=(1, 1, 1, 7))
+    fc.fit(series)
+    mean, lower, upper = fc.predict_interval(7, alpha=0.05)
+    assert len(mean) == 7
+    assert len(lower) == 7
+    assert len(upper) == 7
+    assert np.all(lower <= mean)
+    assert np.all(mean <= upper)
+
+
+def test_prophet_forecaster_fit_predict():
+    series = _make_price_series(n=100)
+    fc = ProphetForecaster()
+    fc.fit(series)
+    pred = fc.predict(7)
+    assert len(pred) == 7
+    assert np.all(np.isfinite(pred))
+
+
+def test_prophet_forecaster_predict_interval():
+    series = _make_price_series(n=100)
+    fc = ProphetForecaster()
+    fc.fit(series)
+    mean, lower, upper = fc.predict_interval(7, alpha=0.05)
+    assert len(mean) == 7
+    assert np.all(lower <= mean)
+    assert np.all(mean <= upper)
+
+
+def test_xgboost_forecaster_fit_predict():
+    series = _make_price_series(n=100)
+    # Build a simple exog frame aligned to series index
+    exog = pd.DataFrame(
+        {
+            "lag_1": series.shift(1),
+            "lag_7": series.shift(7),
+            "roll_mean_7": series.shift(1).rolling(7, min_periods=1).mean(),
+        },
+        index=series.index,
+    ).dropna()
+    series_aligned = series.loc[exog.index]
+    fc = XGBoostForecaster(n_estimators=10, max_depth=3)
+    fc.fit(series_aligned, exog=exog)
+    pred = fc.predict(5, exog=exog.tail(5))
+    assert len(pred) == 5
+    assert np.all(np.isfinite(pred))
+
+
+def test_lightgbm_forecaster_fit_predict():
+    series = _make_price_series(n=100)
+    exog = pd.DataFrame(
+        {
+            "lag_1": series.shift(1),
+            "lag_7": series.shift(7),
+            "roll_mean_7": series.shift(1).rolling(7, min_periods=1).mean(),
+        },
+        index=series.index,
+    ).dropna()
+    series_aligned = series.loc[exog.index]
+    fc = LightGBMForecaster(n_estimators=10, max_depth=3)
+    fc.fit(series_aligned, exog=exog)
+    pred = fc.predict(5, exog=exog.tail(5))
+    assert len(pred) == 5
+    assert np.all(np.isfinite(pred))

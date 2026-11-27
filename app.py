@@ -7,8 +7,15 @@ Run with:
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Optional
+
+# Ensure the src/ package is importable when running `streamlit run app.py`
+# from the repository root (Streamlit adds the script's dir, not src/, to sys.path).
+_SRC = Path(__file__).resolve().parent / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
 import pandas as pd
 import plotly.graph_objects as go
